@@ -16,7 +16,7 @@ func init() {
 	key = buildTokenKey()
 }
 
-func Authorize(db *sql.DB, authorization string) (*user, error) {
+func Authorize(db *sql.DB, authorization string) (*User, error) {
 	fmt.Printf("authorization=%s\n", authorization)
 	parts := strings.Fields(authorization)
 	if len(parts) == 2 {
@@ -39,7 +39,7 @@ func Authorize(db *sql.DB, authorization string) (*user, error) {
 	return nil, nil
 }
 
-func authorizeWithToken(db *sql.DB, token string) (*user, error) {
+func authorizeWithToken(db *sql.DB, token string) (*User, error) {
 	fmt.Printf("token=%s\n", token)
 	hash := hmac.New(sha256.New, []byte(key))
 	hash.Write([]byte(token))
@@ -47,7 +47,7 @@ func authorizeWithToken(db *sql.DB, token string) (*user, error) {
 	fmt.Printf("mac=%s\n", mac)
 
 	rows, err := db.Query(`
-		SELECT u.email
+		SELECT u.email, u.uuid
 		FROM access_tokens at
 		INNER JOIN authorizations a ON a.id = at.authorization_id
 		INNER JOIN users u ON u.id = a.user_id
@@ -59,9 +59,9 @@ func authorizeWithToken(db *sql.DB, token string) (*user, error) {
 	if !rows.Next() {
 		return nil, nil
 	}
-	var email string
-	rows.Scan(&email)
-	return &user{email: email}, nil
+	user := new(User)
+	rows.Scan(&user.email, &user.id)
+	return user, nil
 }
 
 func buildTokenKey() string {
