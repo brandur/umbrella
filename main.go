@@ -4,24 +4,25 @@ import "database/sql"
 import "fmt"
 import "github.com/bmizerany/pq"
 import "net/http"
+import "net/http/httputil"
+import "net/url"
 
 type user struct {
 	email string
 }
 
 var (
-	db *sql.DB
+	db    *sql.DB
+	proxy *httputil.ReverseProxy
 )
 
 func init() {
-	conf, err := pq.ParseURL(RequireEnv("CORE_DATABASE_URL"))
+	db = openDB()
+	url, err := url.Parse(RequireEnv("PROXY_URL"))
 	if err != nil {
 		panic(err)
 	}
-	db, err = sql.Open("postgres", conf)
-	if err != nil {
-		panic(err)
-	}
+	proxy = httputil.NewSingleHostReverseProxy(url)
 }
 
 func handler(res http.ResponseWriter, req *http.Request) {
@@ -34,11 +35,22 @@ func handler(res http.ResponseWriter, req *http.Request) {
 	} else {
 		fmt.Printf("unauthenticated\n")
 	}
-	res.Header().Set("Content-Type", "text/plain")
-	res.Write([]byte("Hello web\n"))
+	proxy.ServeHTTP(res, req)
+}
+
+func openDB() *sql.DB {
+	conf, err := pq.ParseURL(RequireEnv("CORE_DATABASE_URL"))
+	if err != nil {
+		panic(err)
+	}
+	db, err := sql.Open("postgres", conf)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
 
 func main() {
 	http.HandleFunc("/", handler)
-	http.ListenAndServe(":5000", nil)
+	http.ListenAndServe(":5100", nil)
 }
