@@ -9,7 +9,7 @@ import "fmt"
 import "strings"
 
 var (
-    key string
+	key string
 )
 
 func init() {
