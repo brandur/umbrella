@@ -19,7 +19,7 @@ var (
 )
 
 func init() {
-		db = openDB()
+	db = openDB()
 	url, err := url.Parse(RequireEnv("PROXY_URL"))
 	if err != nil {
 		panic(err)
