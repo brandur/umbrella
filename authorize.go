@@ -39,6 +39,27 @@ func Authorize(db *sql.DB, authorization string) (*User, error) {
 	return nil, nil
 }
 
+func AuthorizeSudo(db *sql.DB, user *User, sudo string) (bool, error) {
+ 	if sudo != "true" {
+		return false, nil
+	}
+
+	rows, err := db.Query(`
+		SELECT up.feature
+		FROM user_passes up INNER JOIN users u ON up.user_id = u.id
+		WHERE u.email = $1
+		AND up.feature = 'sudoer'
+	`, user.email)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return false, nil
+	}
+	return true, nil
+}
+
 func authorizeWithToken(db *sql.DB, token string) (*User, error) {
 	fmt.Printf("token=%s\n", token)
 	hash := hmac.New(sha256.New, []byte(key))

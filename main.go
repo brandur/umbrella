@@ -18,10 +18,10 @@ var (
 )
 
 func init() {
-    db = openDB()
+		db = openDB()
 	url, err := url.Parse(RequireEnv("PROXY_URL"))
 	if err != nil {
-	  panic(err)
+		panic(err)
 	}
 	proxy = httputil.NewSingleHostReverseProxy(url)
 }
@@ -33,19 +33,29 @@ func handler(res http.ResponseWriter, req *http.Request) {
 	}
 	if user != nil {
 		fmt.Printf("authenticated user=%s\n", user.email)
-
-		//if authorizeSudo() {
-		  //req.Header.Set("X-Heroku-Sudo", "true")
-		//}
-
 		req.Header.Set("X-Heroku-User-Email", user.email)
+
+        sudo, err := AuthorizeSudo(db, user, req.Header.Get("X-Heroku-Sudo"))
+		if err != nil {
+			panic(err)
+		}
+		if sudo {
+			req.Header.Set("X-Heroku-Sudo", "true")
+
+			email := req.Header.Get("X-Heroku-Sudo-User")
+		    fmt.Printf("sudo=true email=%s\n", email)
+			if email != "" {
+				req.Header.Set("X-Heroku-User-Email", email)
+			}
+		} else {
+		    fmt.Printf("sudo=false\n")
+		}
 	} else {
 		fmt.Printf("unauthenticated\n")
 	}
 
-    // scrub the authorization header
+	// scrub the authorization header
 	req.Header.Set("Authorization", "")
-
 
 	proxy.ServeHTTP(res, req)
 }
