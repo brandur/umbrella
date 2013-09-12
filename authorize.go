@@ -5,7 +5,9 @@ import "crypto/sha256"
 import "database/sql"
 import "encoding/base64"
 import "encoding/hex"
+import "errors"
 import "fmt"
+import "net/http"
 import "strings"
 
 var (
@@ -39,25 +41,45 @@ func Authorize(db *sql.DB, authorization string) (*User, error) {
 	return nil, nil
 }
 
-func AuthorizeSudo(db *sql.DB, user *User, sudo string) (bool, error) {
- 	if sudo != "true" {
-		return false, nil
+func AuthorizeSudo(db *sql.DB, user *User, header *http.Header) (*User, error) {
+ 	if header.Get("X-Heroku-Sudo") != "true" {
+		return nil, nil
 	}
 
 	rows, err := db.Query(`
 		SELECT up.feature
 		FROM user_passes up INNER JOIN users u ON up.user_id = u.id
 		WHERE u.email = $1
-		AND up.feature = 'sudoer'
-	`, user.email)
+		AND up.feature = 'sudoer'`, user.email)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return false, nil
+		return nil, errors.New("Not authorized for sudo.")
 	}
-	return true, nil
+
+    var sudoUser *User
+	email := header.Get("X-Heroku-Sudo-User")
+	if email != "" {
+	    rows, err := db.Query(`
+			SELECT u.email, u.uuid
+			FROM users u
+			WHERE email = $1`, email)
+
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		if !rows.Next() {
+			return nil, errors.New(fmt.Sprintf("Sudo user \"%s\" does not exist.", email))
+		}
+		sudoUser = new(User)
+		rows.Scan(&sudoUser.email, &sudoUser.id)
+	} else {
+	    sudoUser = user
+	}
+	return sudoUser, nil
 }
 
 func authorizeWithToken(db *sql.DB, token string) (*User, error) {

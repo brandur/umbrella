@@ -10,6 +10,7 @@ import "net/url"
 type User struct {
 	email string
 	id string
+	sudo bool
 }
 
 var (
@@ -35,18 +36,18 @@ func handler(res http.ResponseWriter, req *http.Request) {
 		fmt.Printf("authenticated user=%s\n", user.email)
 		req.Header.Set("X-Heroku-User-Email", user.email)
 
-        sudo, err := AuthorizeSudo(db, user, req.Header.Get("X-Heroku-Sudo"))
+        sudoUser, err := AuthorizeSudo(db, user, &req.Header)
 		if err != nil {
 			panic(err)
 		}
-		if sudo {
-			req.Header.Set("X-Heroku-Sudo", "true")
+		if sudoUser != nil {
+			user = sudoUser
+		    fmt.Printf("sudo=true email=%s\n", sudoUser.email)
+			req.Header.Set("X-Heroku-User-Email", sudoUser.email)
 
-			email := req.Header.Get("X-Heroku-Sudo-User")
-		    fmt.Printf("sudo=true email=%s\n", email)
-			if email != "" {
-				req.Header.Set("X-Heroku-User-Email", email)
-			}
+			// X-Heroku-Sudo: true is already set in the request
+			// scrub X-Heroku-Sudo-User
+			req.Header.Set("X-Heroku-Sudo-User", "")
 		} else {
 		    fmt.Printf("sudo=false\n")
 		}
