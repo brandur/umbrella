@@ -45,8 +45,8 @@ func handler(res http.ResponseWriter, req *http.Request) {
 		    fmt.Printf("sudo=true email=%s\n", sudoUser.email)
 			req.Header.Set("X-Heroku-User-Email", sudoUser.email)
 
-			// X-Heroku-Sudo: true is already set in the request
-			// scrub X-Heroku-Sudo-User
+			// `X-Heroku-Sudo: true` is already set in the request
+			// scrub `X-Heroku-Sudo-User`
 			req.Header.Set("X-Heroku-Sudo-User", "")
 		} else {
 		    fmt.Printf("sudo=false\n")
